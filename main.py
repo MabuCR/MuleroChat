@@ -58,11 +58,16 @@ def redirect_login(msg: str = ""):
     return RedirectResponse(url, status_code=302)
 
 
-# ── Health check (required by WCNP cluster) ─────────────────────────────────
+# ── Health check + PWA offline page ─────────────────────────────────────────
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "app": "mulerochat"}
+
+
+@app.get("/offline", response_class=HTMLResponse)
+async def offline_page(request: Request):
+    return templates.TemplateResponse(request, "offline.html", {})
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────

@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MuleroChat – Admin</title>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <meta name="theme-color" content="#0053e2"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html,body { height:100%; margin:0; overflow:hidden; }
@@ -333,8 +335,11 @@
     document.getElementById('img-modal').classList.remove('hidden');
   }
 
-  // ── Boot ───────────────────────────────────────────────────────────────────
+  // Boot
   wsConnect();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+  }
 </script>
 </body>
 </html>
