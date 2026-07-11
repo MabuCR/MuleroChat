@@ -1,0 +1,27 @@
+# fly.toml — MuleroChat en Fly.io
+app = "mulerochat-cedi"
+primary_region = "mia"        # Miami — el mas cercano a Costa Rica
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  ENVIRONMENT = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false   # No dormir — necesario para chat en tiempo real
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
