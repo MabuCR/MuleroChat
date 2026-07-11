@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MuleroChat – Ingresar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #f1f5f9; }
+    .btn-primary { background:#0053e2; color:#fff; }
+    .btn-primary:hover { background:#003dab; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+    <!-- Logo/header -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-600 mb-4 shadow-lg">
+        <span class="text-4xl"></span>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800">MuleroChat</h1>
+      <p class="text-gray-500 text-sm mt-1">Comunicación del CEDI</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      {% if error %}
+      <div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+         {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="/login" class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tu nombre</label>
+          <input type="text" name="name" required autocomplete="off"
+                 placeholder="Ej: Juan, Pedro..."
+                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">PIN (4+ dígitos)</label>
+          <input type="password" name="pin" required inputmode="numeric"
+                 pattern="[0-9]{4,}" placeholder="····"
+                 class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+        </div>
+        <button type="submit"
+                class="btn-primary w-full py-3 rounded-xl font-semibold text-base transition-colors">
+          Entrar →
+        </button>
+      </form>
+
+      <p class="text-center text-xs text-gray-400 mt-6">
+        Primera vez? Tu PIN crea tu cuenta automáticamente.<br/>
+        ¡No lo olvidés!
+      </p>
+    </div>
+  </div>
+</body>
+</html>

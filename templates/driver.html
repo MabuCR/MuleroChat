@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MuleroChat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html,body { height:100%; margin:0; background:#e5ddd5; }
+    #chat-area { background:#e5ddd5; }
+    .bubble-driver { background:#dcf8c6; border-radius:16px 4px 16px 16px; }
+    .bubble-admin  { background:#fff;     border-radius:4px 16px 16px 16px; }
+    #chat-area::-webkit-scrollbar { width:4px; }
+    #chat-area::-webkit-scrollbar-thumb { background:#bbb; border-radius:4px; }
+    .conn-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .conn-ok  { background:#2a8703; }
+    .conn-off { background:#ea1100; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  </style>
+</head>
+<body class="flex flex-col h-screen">
+
+  <!-- Header -->
+  <header class="flex items-center gap-3 px-4 py-3 bg-[#0053e2] text-white shadow-md flex-shrink-0">
+    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">
+      {{ user.name[0] | upper }}
+    </div>
+    <div class="flex-1">
+      <p class="font-semibold text-base">{{ user.name }}</p>
+      <p id="conn-label" class="text-xs text-blue-200">Conectando...</p>
+    </div>
+    <div id="conn-dot" class="conn-dot conn-off"></div>
+    <a href="/logout" class="text-xs text-blue-200 underline ml-2">Salir</a>
+  </header>
+
+  <!-- Messages -->
+  <div id="chat-area" class="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-2">
+    {% for m in messages %}
+    <div class="flex {% if m.sender == 'driver' %}justify-end{% else %}justify-start{% endif %}">
+      <div class="max-w-[78%] px-3 py-2 shadow-sm {% if m.sender == 'driver' %}bubble-driver{% else %}bubble-admin{% endif %}">
+        {% if m.sender == 'admin' %}
+        <p class="text-[11px] font-semibold text-[#0053e2] mb-1">Manfred</p>
+        {% endif %}
+        {% if m.content %}<p class="text-sm text-gray-800 break-words">{{ m.content }}</p>{% endif %}
+        {% if m.photo_url %}
+        <img src="{{ m.photo_url }}" alt="foto"
+             class="max-w-full rounded-lg mt-1 cursor-pointer"
+             onclick="viewImg(this.src)"/>
+        {% endif %}
+        <p class="text-[10px] text-gray-400 text-right mt-1">{{ m.created_at[11:16] }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Input bar -->
+  <div class="flex-shrink-0 bg-[#f0f0f0] px-3 py-2 flex items-end gap-2 border-t border-gray-300">
+    <label class="cursor-pointer flex-shrink-0">
+      <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden"/>
+      <div class="w-10 h-10 rounded-full bg-[#0053e2] flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </div>
+    </label>
+    <textarea id="msg-input" rows="1"
+              placeholder="Mensaje..."
+              class="flex-1 resize-none rounded-2xl px-4 py-2 border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-28 overflow-y-auto"
+              oninput="autoGrow(this)"
+              onkeydown="handleKey(event)"></textarea>
+    <button onclick="sendText()"
+            class="flex-shrink-0 w-10 h-10 rounded-full bg-[#0053e2] flex items-center justify-center">
+      <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Image viewer modal -->
+  <div id="img-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+       onclick="this.classList.add('hidden')">
+    <img id="img-modal-src" src="" class="max-w-full max-h-full rounded-lg"/>
+  </div>
+
+  <script>
+    const DRIVER_ID = {{ user.id }};
+    let ws = null;
+
+    function scrollBottom() {
+      const el = document.getElementById('chat-area');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(ok) {
+      document.getElementById('conn-dot').className = 'conn-dot ' + (ok ? 'conn-ok' : 'conn-off');
+      document.getElementById('conn-label').textContent = ok ? 'Conectado' : 'Reconectando...';
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function buildBubble(sender, content, photoUrl, time) {
+      const isDriver = sender === 'driver';
+      const timeStr = time ? time.substring(11,16) : new Date().toTimeString().substring(0,5);
+      return `
+        <div class="flex ${isDriver ? 'justify-end' : 'justify-start'}">
+          <div class="max-w-[78%] px-3 py-2 shadow-sm ${isDriver ? 'bubble-driver' : 'bubble-admin'}">
+            ${!isDriver ? '<p class="text-[11px] font-semibold text-[#0053e2] mb-1">Manfred</p>' : ''}
+            ${content ? `<p class="text-sm text-gray-800 break-words">${esc(content)}</p>` : ''}
+            ${photoUrl ? `<img src="${photoUrl}" class="max-w-full rounded-lg mt-1 cursor-pointer" onclick="viewImg(this.src)"/>` : ''}
+            <p class="text-[10px] text-gray-400 text-right mt-1">${timeStr}</p>
+          </div>
+        </div>`;
+    }
+
+    function appendBubble(sender, content, photoUrl, time) {
+      document.getElementById('chat-area').insertAdjacentHTML('beforeend',
+        buildBubble(sender, content, photoUrl, time));
+      scrollBottom();
+    }
+
+    // WebSocket with auto-reconnect
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${location.host}/ws/driver/${DRIVER_ID}`);
+      ws.onopen = () => setStatus(true);
+      ws.onclose = () => { setStatus(false); setTimeout(connect, 3000); };
+      ws.onerror = () => ws.close();
+      ws.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        if (d.type === 'message') {
+          appendBubble(d.sender, d.content, d.photo_url, d.created_at);
+        }
+      };
+    }
+
+    // Send text
+    function sendText() {
+      const inp = document.getElementById('msg-input');
+      const text = inp.value.trim();
+      if (!text || !ws || ws.readyState !== 1) return;
+      ws.send(JSON.stringify({ content: text }));
+      appendBubble('driver', text, null, null);
+      inp.value = '';
+      inp.style.height = '';
+    }
+
+    // Auto-grow textarea
+    function autoGrow(el) {
+      el.style.height = '';
+      el.style.height = Math.min(el.scrollHeight, 112) + 'px';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+    }
+
+    // Photo upload
+    document.getElementById('photo-input').addEventListener('change', async function() {
+      const file = this.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.url && ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ photo_url: json.url }));
+        appendBubble('driver', null, json.url, null);
+      } else if (json.error) {
+        alert(json.error);
+      }
+      this.value = '';
+    });
+
+    function viewImg(src) {
+      document.getElementById('img-modal-src').src = src;
+      document.getElementById('img-modal').classList.remove('hidden');
+    }
+
+    connect();
+    scrollBottom();
+  </script>
+</body>
+</html>

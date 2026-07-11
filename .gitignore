@@ -1,0 +1,29 @@
+# MuleroChat — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Base de datos SQLite (se crea sola al arrancar)
+*.db
+*.db-shm
+*.db-wal
+
+# Fotos subidas por los muleros (no van al repo)
+static/uploads/
+
+# Logs
+*.log
+server.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# VS Code / IDE
+.vscode/
+.idea/

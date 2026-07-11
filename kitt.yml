@@ -1,0 +1,65 @@
+# kitt.yml — MuleroChat en WCNP / AI Innovation Lab
+#   COMPLETAR antes de hacer push:
+#   - application.name  → el nombre que asignó Launchpad
+#   - deploy.namespace  → el namespace que asignó Launchpad
+#   - ingress.host      → el host que asignó Launchpad
+version: "1"
+
+application:
+  name: mulero-chat          # ← Launchpad asigna esto
+  platform: wcnp
+  type: docker
+
+build:
+  strategy: docker
+  dockerfile: Dockerfile
+  context: .
+
+deploy:
+  cluster: us-stg            # staging primero; cambiar a "us" para prod
+  namespace: mulero-chat     # ← Launchpad asigna esto
+  replicas: 1
+
+  container:
+    port: 8080
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+
+  # Health checks — /health endpoint ya está en main.py
+  healthCheck:
+    liveness:
+      path: /health
+      port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readiness:
+      path: /health
+      port: 8080
+      initialDelaySeconds: 15
+      periodSeconds: 5
+
+  ingress:
+    enabled: true
+    host: mulero-chat.walmart.com   # ← Launchpad asigna el host real
+    tls: true
+    annotations:
+      # Soporte WebSockets (conexiones de larga duración)
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+      nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_cache_bypass $http_upgrade;
+
+  env:
+    - name: PORT
+      value: "8080"
+    - name: ENVIRONMENT
+      value: staging

@@ -1,0 +1,14 @@
+[project]
+name = "mulerochat"
+version = "0.1.0"
+description = "MuleroChat - Mensajeria interna CEDI"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+    "jinja2>=3.1",
+]
+
+[tool.setuptools]
+packages = []
